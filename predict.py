@@ -25,6 +25,7 @@ def create_spark_session(app_name="ToxicityPredictor"):
         .appName(app_name) \
         .config("spark.sql.warehouse.dir", "/tmp/spark-warehouse") \
         .config("spark.driver.memory", "2g") \
+        .config("spark.executor.memory", "2g") \
         .getOrCreate()
     
     spark.sparkContext.setLogLevel("WARN")
