@@ -9,7 +9,7 @@ from pyspark.ml.classification import (
 )
 from pyspark.ml.evaluation import BinaryClassificationEvaluator, MulticlassClassificationEvaluator
 from pyspark.sql import DataFrame
-from typing import Tuple, Dict
+from typing import Dict
 
 
 class ToxicityClassifier:

@@ -7,6 +7,7 @@ import argparse
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType
 from pyspark.ml.classification import LogisticRegressionModel, RandomForestClassificationModel
+from pyspark.ml.feature import HashingTF
 from src.preprocessing import TextPreprocessor
 
 
@@ -66,7 +67,6 @@ def load_preprocessor(idf_model_path, num_features=1000):
     preprocessor = TextPreprocessor()
     
     # Initialize HashingTF with same parameters as training
-    from pyspark.ml.feature import HashingTF
     preprocessor.hashing_tf = HashingTF(
         inputCol="filtered_words",
         outputCol="raw_features",

@@ -7,7 +7,7 @@ import re
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import udf, col, lower, regexp_replace
 from pyspark.sql.types import StringType, ArrayType
-from pyspark.ml.feature import Tokenizer, StopWordsRemover, HashingTF, IDF
+from pyspark.ml.feature import Tokenizer, StopWordsRemover, HashingTF, IDF, IDFModel
 
 
 class TextPreprocessor:
@@ -176,6 +176,5 @@ class TextPreprocessor:
         Args:
             path (str): Path to load the IDF model from
         """
-        from pyspark.ml.feature import IDFModel
         self.idf_model = IDFModel.load(path)
         print(f"IDF model loaded from {path}")
