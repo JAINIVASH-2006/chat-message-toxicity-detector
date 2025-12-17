@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Settings — Toxicity Detector{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h2>Settings</h2>
+  <p class="muted">Configure basic paths and Spark options for local runs.</p>
+  <div class="grid">
+    <div>
+      <label>Spark master URL</label>
+      <input id="cfg-spark-master" value="local[*]" />
+    </div>
+    <div>
+      <label>Default dataset folder</label>
+      <input id="cfg-data-folder" value="data/datasets" />
+    </div>
+    <div class="actions">
+      <button id="save-settings" class="btn primary">Save</button>
+    </div>
+  </div>
+  <div id="settings-result" class="result"></div>
+  <div style="margin-top:16px">
+    <button id="reload-lexicon" class="btn">Reload Toxicity Lexicon</button>
+    <span id="lexicon-status" class="muted"></span>
+  </div>
+</section>
+
+<script>
+document.getElementById('save-settings').addEventListener('click', async ()=>{
+  const master = document.getElementById('cfg-spark-master').value;
+  const folder = document.getElementById('cfg-data-folder').value;
+  const r = await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({spark_master:master,data_folder:folder})});
+  document.getElementById('settings-result').textContent = JSON.stringify(await r.json());
+});
+
+document.getElementById('reload-lexicon').addEventListener('click', async ()=>{
+  const res = await fetch('/api/lexicon/reload', {method: 'POST'});
+  const data = await res.json();
+  document.getElementById('lexicon-status').textContent = `Loaded ${data.keywords} keywords across ${data.categories} categories.`;
+});
+</script>
+
+{% endblock %}

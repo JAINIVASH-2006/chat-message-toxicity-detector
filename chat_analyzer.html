@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Chat Toxicity Analyzer</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+      .chat-container {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 20px;
+        height: calc(100vh - 200px);
+      }
+      
+      .chat-panel {
+        display: flex;
+        flex-direction: column;
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      
+      .messages-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        background: #f9fafb;
+      }
+      
+      .message {
+        margin-bottom: 15px;
+        padding: 12px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        position: relative;
+        transition: all 0.3s;
+      }
+      
+      .message:hover {
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      }
+      
+      .message.safe { border-left: 4px solid #10b981; }
+      .message.low { border-left: 4px solid #84cc16; }
+      .message.medium { border-left: 4px solid #f59e0b; }
+      .message.high { border-left: 4px solid #f97316; }
+      .message.severe { border-left: 4px solid #ef4444; }
+      .message.extreme { border-left: 4px solid #dc2626; }
+      
+      .message-text {
+        color: #374151;
+        margin-bottom: 8px;
+        line-height: 1.5;
+      }
+      
+      .message-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: #6b7280;
+      }
+      
+      .toxicity-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 11px;
+      }
+      
+      .toxicity-badge.safe { background: #d1fae5; color: #065f46; }
+      .toxicity-badge.low { background: #ecfccb; color: #3f6212; }
+      .toxicity-badge.medium { background: #fef3c7; color: #92400e; }
+      .toxicity-badge.high { background: #fed7aa; color: #9a3412; }
+      .toxicity-badge.severe { background: #fee2e2; color: #991b1b; }
+      .toxicity-badge.extreme { background: #fecaca; color: #7f1d1d; }
+      
+      .input-area {
+        display: flex;
+        gap: 10px;
+      }
+      
+      .input-area input {
+        flex: 1;
+        padding: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      
+      .input-area input:focus {
+        outline: none;
+        border-color: #3b82f6;
+      }
+      
+      .analytics-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      
+      .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      
+      .stat-card h3 {
+        margin: 0 0 15px 0;
+        font-size: 16px;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        margin: 10px 0;
+      }
+      
+      .stat-value.safe { color: #10b981; }
+      .stat-value.low { color: #84cc16; }
+      .stat-value.medium { color: #f59e0b; }
+      .stat-value.high { color: #f97316; }
+      .stat-value.severe { color: #ef4444; }
+      .stat-value.extreme { color: #dc2626; }
+      
+      .progress-bar {
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 10px 0;
+      }
+      
+      .progress-fill {
+        height: 100%;
+        transition: width 0.5s ease;
+      }
+      
+      .progress-fill.safe { background: #10b981; }
+      .progress-fill.low { background: #84cc16; }
+      .progress-fill.medium { background: #f59e0b; }
+      .progress-fill.high { background: #f97316; }
+      .progress-fill.severe { background: #ef4444; }
+      .progress-fill.extreme { background: #dc2626; }
+      
+      .keyword-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      
+      .keyword-tag {
+        padding: 4px 10px;
+        background: #f3f4f6;
+        border-radius: 12px;
+        font-size: 12px;
+        color: #374151;
+      }
+      
+      .action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+      }
+      
+      .btn-small {
+        padding: 8px 16px;
+        font-size: 13px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      
+      .btn-clear {
+        background: #ef4444;
+        color: white;
+      }
+      
+      .btn-clear:hover {
+        background: #dc2626;
+      }
+      
+      .btn-export {
+        background: #3b82f6;
+        color: white;
+      }
+      
+      .btn-export:hover {
+        background: #2563eb;
+      }
+      
+      @media (max-width: 968px) {
+        .chat-container {
+          grid-template-columns: 1fr;
+          height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">💬 Chat Toxicity Analyzer</div>
+      <nav>
+        <a href="/"><i class="fas fa-home"></i> Home</a>
+        <a href="/chat-analyzer" class="active"><i class="fas fa-comment"></i> Chat Analyzer</a>
+        <a href="/live-dashboard"><i class="fas fa-chart-pie"></i> Live Dashboard</a>
+        <a href="/dataset-analyzer"><i class="fas fa-database"></i> Dataset Analyzer</a>
+        <a href="/comparison"><i class="fas fa-balance-scale"></i> Comparison</a>
+        <a href="/analytics"><i class="fas fa-chart-line"></i> Analytics</a>
+        <a href="/batch"><i class="fas fa-layer-group"></i> Batch</a>
+        <a href="/models"><i class="fas fa-brain"></i> Models</a>
+        <a href="/help"><i class="fas fa-question-circle"></i> Help</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="section-margin">
+        <h1>Real-Time Chat Analysis</h1>
+        <p class="muted">Analyze conversations in real-time with intelligent toxicity detection</p>
+      </section>
+
+      <div class="chat-container">
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+          <h2 class="chat-header">💬 Conversation</h2>
+          <div class="messages-list" id="messages-list">
+            <div class="empty-state">
+              <i class="fa fa-comments empty-icon"></i>
+              <p>Start typing messages to analyze toxicity in real-time</p>
+            </div>
+          </div>
+          
+          <div class="input-area">
+            <input 
+              type="text" 
+              id="message-input" 
+              placeholder="Type a message and press Enter to analyze..."
+              autocomplete="off"
+            />
+            <button class="btn primary" id="send-btn">
+              <i class="fa fa-paper-plane"></i> Send
+            </button>
+          </div>
+          
+          <div class="action-buttons">
+            <button class="btn-small btn-clear" id="clear-btn">
+              <i class="fa fa-trash"></i> Clear All
+            </button>
+            <button class="btn-small btn-export" id="export-btn">
+              <i class="fa fa-download"></i> Export Report
+            </button>
+          </div>
+        </div>
+
+        <!-- Analytics Panel -->
+        <div class="analytics-panel">
+          <!-- Overall Score -->
+          <div class="stat-card">
+            <h3><i class="fa fa-chart-line"></i> Overall Risk</h3>
+            <div class="stat-value low" id="overall-score">0%</div>
+            <div class="progress-bar">
+              <div class="progress-fill low" id="overall-progress"></div>
+            </div>
+            <small class="muted">Average toxicity across all messages</small>
+          </div>
+
+          <!-- Message Count -->
+          <div class="stat-card">
+            <h3><i class="fa fa-messages"></i> Messages Analyzed</h3>
+            <div class="stat-grid-3">
+              <div>
+                <div class="stat-number-green" id="count-low">0</div>
+                <small class="muted">Low Risk</small>
+              </div>
+              <div>
+                <div class="stat-number-amber" id="count-medium">0</div>
+                <small class="muted">Medium</small>
+              </div>
+              <div>
+                <div class="stat-number-red" id="count-high">0</div>
+                <small class="muted">High Risk</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top Keywords -->
+          <div class="stat-card">
+            <h3><i class="fa fa-tags"></i> Detected Keywords</h3>
+            <div class="keyword-list" id="keyword-list">
+              <span class="muted keyword-small">No keywords detected yet</span>
+            </div>
+          </div>
+
+          <!-- Categories -->
+          <div class="stat-card">
+            <h3><i class="fa fa-layer-group"></i> Top Categories</h3>
+            <div id="categories-list" class="category-text">
+              No categories detected yet
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      let messages = [];
+      let allKeywords = new Set();
+      let categoryCount = {};
+
+      async function analyzeMessage(text) {
+        const res = await fetch('/predict', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({text})
+        });
+        return res.json();
+      }
+
+      function addMessage(text, analysis) {
+        const messageEl = document.createElement('div');
+        const riskLevel = analysis.toxicity_level || analysis.risk_level || 'SAFE';
+        messageEl.className = `message ${riskLevel.toLowerCase()}`;
+        
+        const score = analysis.toxicity_score ? analysis.toxicity_score.toFixed(1) : '0.0';
+        const keywords = (analysis.matched_keywords || []).slice(0, 5).join(', ') || 'None';
+        const totalMatches = analysis.total_matches || 0;
+        
+        messageEl.innerHTML = `
+          <div class="message-text">${escapeHtml(text)}</div>
+          <div class="message-meta">
+            <span><i class="fa fa-clock"></i> ${new Date().toLocaleTimeString()}</span>
+            <span class="toxicity-badge ${riskLevel.toLowerCase()}">
+              ${riskLevel} ${score}/100 (${totalMatches} words)
+            </span>
+          </div>
+        `;
+        
+        const messagesList = document.getElementById('messages-list');
+        messagesList.innerHTML === '<div style="text-align: center; color: #9ca3af; padding: 40px 20px;"><i class="fa fa-comments" style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;"></i><p>Start typing messages to analyze toxicity in real-time</p></div>' 
+          ? messagesList.innerHTML = '' 
+          : null;
+        messagesList.appendChild(messageEl);
+        messagesList.scrollTop = messagesList.scrollHeight;
+        
+        // Store message
+        messages.push({text, analysis, timestamp: new Date()});
+        
+        // Update keywords
+        (analysis.matched_keywords || []).forEach(kw => allKeywords.add(kw));
+        
+        // Update categories with breakdown
+        if (analysis.category_breakdown) {
+          Object.entries(analysis.category_breakdown).forEach(([cat, score]) => {
+            categoryCount[cat] = (categoryCount[cat] || 0) + score;
+          });
+        } else if (analysis.top_category) {
+          categoryCount[analysis.top_category] = (categoryCount[analysis.top_category] || 0) + 1;
+        }
+        
+        updateStatistics();
+      }
+
+      function updateStatistics() {
+        if (messages.length === 0) return;
+        
+        // Calculate average score (toxicity_score is already 0-100)
+        const avgScore = messages.reduce((sum, m) => sum + (m.analysis.toxicity_score || 0), 0) / messages.length;
+        const avgPercent = avgScore.toFixed(1);
+        
+        // Update overall score
+        const overallEl = document.getElementById('overall-score');
+        const progressEl = document.getElementById('overall-progress');
+        overallEl.textContent = avgPercent + '/100';
+        progressEl.style.width = Math.min(avgPercent, 100) + '%';
+        
+        // Set color based on risk
+        const riskClass = avgScore > 60 ? 'high' : avgScore > 30 ? 'medium' : 'low';
+        overallEl.className = `stat-value ${riskClass}`;
+        progressEl.className = `progress-fill ${riskClass}`;
+        
+        // Count by risk level
+        const counts = {safe: 0, low: 0, medium: 0, high: 0, severe: 0, extreme: 0};
+        messages.forEach(m => {
+          const level = (m.analysis.toxicity_level || m.analysis.risk_level || 'safe').toLowerCase();
+          if (counts.hasOwnProperty(level)) {
+            counts[level]++;
+          }
+        });
+        document.getElementById('count-low').textContent = counts.safe + counts.low;
+        document.getElementById('count-medium').textContent = counts.medium;
+        document.getElementById('count-high').textContent = counts.high + counts.severe + counts.extreme;
+        
+        // Update keywords
+        const keywordList = document.getElementById('keyword-list');
+        if (allKeywords.size > 0) {
+          keywordList.innerHTML = Array.from(allKeywords).slice(0, 15)
+            .map(kw => `<span class="keyword-tag">${escapeHtml(kw)}</span>`)
+            .join('');
+        }
+        
+        // Update categories
+        const categoriesList = document.getElementById('categories-list');
+        const sortedCategories = Object.entries(categoryCount)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5);
+        
+        if (sortedCategories.length > 0) {
+          categoriesList.innerHTML = sortedCategories
+            .map(([cat, count]) => `<div style="margin: 5px 0;">${cat.replace(/_/g, ' ')}: <strong>${typeof count === 'number' ? count.toFixed(1) : count}</strong></div>`)
+            .join('');
+        }
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      async function sendMessage() {
+        const input = document.getElementById('message-input');
+        const text = input.value.trim();
+        
+        if (!text) return;
+        
+        input.value = '';
+        input.disabled = true;
+        
+        try {
+          const analysis = await analyzeMessage(text);
+          addMessage(text, analysis);
+        } catch (error) {
+          alert('Error analyzing message: ' + error.message);
+        } finally {
+          input.disabled = false;
+          input.focus();
+        }
+      }
+
+      // Event listeners
+      document.getElementById('send-btn').addEventListener('click', sendMessage);
+      document.getElementById('message-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+      });
+
+      document.getElementById('clear-btn').addEventListener('click', () => {
+        if (confirm('Clear all messages?')) {
+          messages = [];
+          allKeywords = new Set();
+          categoryCount = {};
+          document.getElementById('messages-list').innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 40px 20px;"><i class="fa fa-comments" style="font-size: 48px; margin-bottom: 15px; opacity: 0.5;"></i><p>Start typing messages to analyze toxicity in real-time</p></div>';
+          document.getElementById('overall-score').textContent = '0%';
+          document.getElementById('overall-progress').style.width = '0%';
+          document.getElementById('count-low').textContent = '0';
+          document.getElementById('count-medium').textContent = '0';
+          document.getElementById('count-high').textContent = '0';
+          document.getElementById('keyword-list').innerHTML = '<span class="muted" style="font-size: 13px;">No keywords detected yet</span>';
+          document.getElementById('categories-list').innerHTML = 'No categories detected yet';
+        }
+      });
+
+      document.getElementById('export-btn').addEventListener('click', () => {
+        if (messages.length === 0) {
+          alert('No messages to export');
+          return;
+        }
+        
+        const report = {
+          generated: new Date().toISOString(),
+          total_messages: messages.length,
+          average_toxicity: (messages.reduce((sum, m) => sum + m.analysis.toxicity_score, 0) / messages.length).toFixed(3),
+          risk_distribution: {
+            low: messages.filter(m => m.analysis.risk_level === 'LOW').length,
+            medium: messages.filter(m => m.analysis.risk_level === 'MEDIUM').length,
+            high: messages.filter(m => m.analysis.risk_level === 'HIGH').length
+          },
+          detected_keywords: Array.from(allKeywords),
+          categories: categoryCount,
+          messages: messages.map(m => ({
+            text: m.text,
+            timestamp: m.timestamp,
+            toxicity_score: m.analysis.toxicity_score,
+            risk_level: m.analysis.risk_level,
+            matched_keywords: m.analysis.matched_keywords,
+            top_category: m.analysis.top_category
+          }))
+        };
+        
+        const blob = new Blob([JSON.stringify(report, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `toxicity-report-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      // Focus input on load
+      document.getElementById('message-input').focus();
+    </script>
+  </body>
+</html>

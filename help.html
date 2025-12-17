@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Help — Toxicity Detector{% endblock %}
+
+{% block content %}
+<style>
+.readme-content {
+  white-space: pre-wrap;
+  max-height: 600px;
+  overflow: auto;
+}
+</style>
+
+<section class="card">
+  <h2>Help & Docs</h2>
+  <p class="muted">README content from the project is shown below.</p>
+  <pre id="readme-area" class="result readme-content"></pre>
+</section>
+
+<script>
+async function loadReadme(){
+  const r = await fetch('/api/help');
+  const js = await r.json();
+  document.getElementById('readme-area').textContent = js.content || 'No README found';
+}
+loadReadme();
+</script>
+
+{% endblock %}

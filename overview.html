@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Overview — Toxicity Detector{% endblock %}
+
+{% block content %}
+<style>
+.message-item {
+  padding: 8px;
+  margin: 6px 0;
+  border-left: 4px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+.message-item.high-risk {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+.message-item.medium-risk {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+.message-item.low-risk {
+  border-left-color: #10b981;
+  background: #f0fdf4;
+}
+</style>
+<section class="card">
+  <h2>Project Overview</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Datasets</h3>
+      <p id="ds-count">...</p>
+      <button id="ds-list" class="btn">List datasets</button>
+      <div id="ds-area"></div>
+    </div>
+    <div class="card">
+      <h3>Models</h3>
+      <p id="models-count">...</p>
+      <div id="models-area"></div>
+    </div>
+    <div class="card">
+      <h3>Jobs & Logs</h3>
+      <p id="logs-count">...</p>
+      <div id="logs-area"></div>
+    </div>
+    <div class="card">
+      <h3>Toxicity Lexicon</h3>
+      <p><strong id="lexicon-keywords">...</strong> keywords tracked</p>
+      <p><strong id="lexicon-categories">...</strong> categories detected</p>
+    </div>
+  </div>
+  <div style="margin-top:12px">
+    <button id="open-history" class="btn">Open Spark History Server</button>
+    <span class="muted">(requires Spark event logs enabled)</span>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Dataset Toxicity Audit</h2>
+  <p>Run a quick heuristic audit of a dataset and review the riskiest messages.</p>
+  <div class="grid">
+    <div>
+      <label>Dataset Path</label>
+      <input id="audit-path" value="data/datasets/comprehensive_toxicity_dataset.csv" />
+    </div>
+    <div>
+      <label>Sample Size</label>
+      <input id="audit-limit" value="500" />
+    </div>
+    <div class="actions">
+      <button id="run-audit" class="btn primary">Analyze Dataset</button>
+    </div>
+  </div>
+  <div id="audit-summary" class="muted" style="margin-top:12px;"></div>
+  <div id="audit-results"></div>
+</section>
+
+<section class="card">
+  <h2>🔍 Quick Prediction</h2>
+  <p>Test toxicity detection on sample text</p>
+  <textarea id="predict-text" placeholder="Enter text to analyze for toxicity..." rows="3" style="width:100%;margin-bottom:10px;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;"></textarea>
+  <button id="predict-btn" class="btn btn-primary" style="margin-bottom:15px;">🚀 Analyze Toxicity</button>
+  
+  <div id="risk-indicator" style="margin-bottom:10px;"></div>
+  <div id="predict-result" style="background:#f8fafc;padding:15px;border-radius:8px;border:1px solid #e2e8f0;min-height:60px;line-height:1.5;"></div>
+  
+  <div style="margin-top:15px;font-size:12px;color:#64748b;">
+    <strong>Risk Levels:</strong>
+    <span style="color:#10b981;">●</span> Low (0-30%) 
+    <span style="color:#f59e0b;">●</span> Medium (30-60%) 
+    <span style="color:#ef4444;">●</span> High (60%+)
+  </div>
+</section>
+
+<script>
+async function loadOverview(){
+  const r = await fetch('/api/overview');
+  const js = await r.json();
+  document.getElementById('ds-count').textContent = js.datasets + ' dataset files';
+  document.getElementById('models-count').textContent = js.models + ' models';
+  document.getElementById('logs-count').textContent = js.logs + ' log files';
+  document.getElementById('ds-area').textContent = js.dataset_files.join('\n');
+  document.getElementById('models-area').textContent = js.model_dirs.join('\n');
+  document.getElementById('logs-area').textContent = js.log_files.join('\n');
+  document.getElementById('lexicon-keywords').textContent = js.lexicon_keywords;
+  document.getElementById('lexicon-categories').textContent = js.lexicon_categories;
+}
+document.getElementById('open-history').addEventListener('click', ()=>{
+  window.open('http://localhost:18080', '_blank');
+});
+
+async function runAudit(){
+  const btn = document.getElementById('run-audit');
+  const summaryEl = document.getElementById('audit-summary');
+  const resultsEl = document.getElementById('audit-results');
+  const path = document.getElementById('audit-path').value.trim();
+  const limit = document.getElementById('audit-limit').value.trim();
+  btn.disabled = true;
+  summaryEl.textContent = 'Analyzing dataset…';
+  resultsEl.innerHTML = '';
+  try {
+    const params = new URLSearchParams();
+    if (path) params.append('path', path);
+    if (limit) params.append('limit', limit);
+    const res = await fetch(`/api/messages/dataset-analysis?${params.toString()}`);
+    const data = await res.json();
+    if (!res.ok) {
+      summaryEl.textContent = data.error || 'Failed to analyze dataset.';
+      return;
+    }
+    const avg = (data.summary.average_toxicity * 100).toFixed(1);
+    const risks = data.summary.risk_counts;
+    summaryEl.innerHTML = `Analyzed <strong>${data.analyzed}</strong> rows from <code>${data.dataset}</code><br>
+      Average toxicity: <strong>${avg}%</strong><br>
+      Risk distribution — Low: ${risks.LOW}, Medium: ${risks.MEDIUM}, High: ${risks.HIGH}`;
+
+    if (data.label_breakdown && Object.keys(data.label_breakdown).length) {
+      const labelInfo = Object.entries(data.label_breakdown)
+        .map(([lbl, count]) => `${lbl}: ${count}`)
+        .join(', ');
+      summaryEl.innerHTML += `<br>Label counts: ${labelInfo}`;
+    }
+
+    const highlight = data.highlights.high_risk || [];
+    if (highlight.length) {
+      const list = highlight.map(item => `
+        <div class="message-item ${item.risk_level.toLowerCase()}-risk">
+          <strong>Row ${item.row_index}</strong> — Toxicity ${(item.toxicity_score * 100).toFixed(1)}%<br>
+          <small>${item.text_snippet}<br>
+          Keywords: ${item.matched_keywords.join(', ') || 'None'}
+          ${item.top_category ? `<br>Category: ${item.top_category.replace(/_/g, ' ')}` : ''}
+          </small>
+        </div>
+      `).join('');
+      resultsEl.innerHTML = `<h4>Highest-risk messages</h4>${list}`;
+    } else {
+      resultsEl.innerHTML = '<p>No high-risk messages detected in the sampled rows.</p>';
+    }
+  } catch (err) {
+    summaryEl.textContent = `Error: ${err}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('run-audit').addEventListener('click', runAudit);
+loadOverview();
+</script>
+
+{% endblock %}

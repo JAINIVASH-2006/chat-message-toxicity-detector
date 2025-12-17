@@ -1,0 +1,525 @@
+{% extends "base.html" %}
+
+{% block title %}Live Dashboard - Dataset Analysis{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-gradient-primary text-white">
+                <div class="card-body">
+                    <h2><i class="fas fa-chart-line"></i> Live Dashboard - Chat Toxicity Dataset Analysis</h2>
+                    <p class="mb-0">Real-time analysis of 30 curated chat message datasets across multiple categories</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4" id="summaryStats">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-database fa-2x text-primary mb-2"></i>
+                    <h3 id="totalDatasets">30</h3>
+                    <p class="text-muted">Total Datasets</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-comments fa-2x text-success mb-2"></i>
+                    <h3 id="totalMessages">-</h3>
+                    <p class="text-muted">Total Messages</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                    <h3 id="toxicMessages">-</h3>
+                    <p class="text-muted">Toxic Messages</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <i class="fas fa-percentage fa-2x text-warning mb-2"></i>
+                    <h3 id="toxicityRate">-</h3>
+                    <p class="text-muted">Toxicity Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <label class="form-label"><strong>Filter by Category:</strong></label>
+                            <select class="form-select" id="categoryFilter" onchange="filterDatasets()" title="Filter by category">
+                                <option value="all">All Categories</option>
+                                <option value="gaming">Gaming</option>
+                                <option value="social">Social Media</option>
+                                <option value="business">Business</option>
+                                <option value="forum">Forum</option>
+                                <option value="workplace">Workplace</option>
+                                <option value="politics">Politics</option>
+                                <option value="community">Community</option>
+                                <option value="sports">Sports</option>
+                                <option value="education">Education</option>
+                                <option value="health">Health</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label"><strong>Filter by Toxicity:</strong></label>
+                            <select class="form-select" id="toxicityFilter" onchange="filterDatasets()" title="Filter by toxicity level">
+                                <option value="all">All Levels</option>
+                                <option value="high">High Toxicity</option>
+                                <option value="medium">Medium Toxicity</option>
+                                <option value="low">Low Toxicity</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label"><strong>Actions:</strong></label><br>
+                            <button class="btn btn-primary" onclick="analyzeAllDatasets()">
+                                <i class="fas fa-play"></i> Analyze All Datasets
+                            </button>
+                            <button class="btn btn-success" onclick="generateReport()">
+                                <i class="fas fa-file-download"></i> Generate Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="row mb-4 d-none" id="progressSection">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Analysis Progress</h5>
+                    <div class="progress progress-lg">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             id="analysisProgress" 
+                             role="progressbar" 
+                             aria-valuenow="0" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"
+                             aria-label="Analysis progress">0%</div>
+                    </div>
+                    <small class="text-muted mt-2 d-block" id="progressText">Preparing analysis...</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dataset Grid -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-th-large"></i> Available Datasets</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row" id="datasetGrid">
+                        <div class="col-12 text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3">Loading datasets...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Results -->
+    <div class="row mb-4 d-none" id="resultsSection">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-bar"></i> Analysis Results</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="toxicityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="resultsTable">
+                            <thead>
+                                <tr>
+                                    <th>Dataset</th>
+                                    <th>Category</th>
+                                    <th>Messages</th>
+                                    <th>Toxic Count</th>
+                                    <th>Toxicity %</th>
+                                    <th>Avg Score</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Report -->
+    <div class="row d-none" id="reportSection">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4><i class="fas fa-file-alt"></i> Comprehensive Analysis Report</h4>
+                </div>
+                <div class="card-body">
+                    <div id="reportContent"></div>
+                    <div class="text-center mt-4">
+                        <button class="btn btn-secondary" onclick="exportReportCSV()">
+                            <i class="fas fa-file-csv"></i> Export as CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.progress-lg {
+    height: 25px;
+}
+
+.dataset-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    height: 100%;
+}
+
+.dataset-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.toxicity-badge-high { background-color: #dc3545; color: white; }
+.toxicity-badge-medium { background-color: #ffc107; color: black; }
+.toxicity-badge-low { background-color: #28a745; color: white; }
+
+.analyzing {
+    border: 2px solid #007bff;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let datasetsData = [];
+let analysisResults = {};
+let categoryChart, toxicityChart;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDatasets();
+});
+
+async function loadDatasets() {
+    try {
+        const response = await fetch('/api/datasets/list');
+        const data = await response.json();
+        
+        if (data.datasets) {
+            datasetsData = data.datasets;
+            renderDatasets(datasetsData);
+        }
+    } catch (error) {
+        console.error('Error loading datasets:', error);
+        document.getElementById('datasetGrid').innerHTML = `
+            <div class="col-12 text-center text-danger">
+                <i class="fas fa-exclamation-circle fa-3x mb-3"></i>
+                <p>Failed to load datasets</p>
+            </div>
+        `;
+    }
+}
+
+function renderDatasets(datasets) {
+    const grid = document.getElementById('datasetGrid');
+    
+    if (datasets.length === 0) {
+        grid.innerHTML = '<div class="col-12 text-center text-muted"><p>No datasets found</p></div>';
+        return;
+    }
+    
+    grid.innerHTML = datasets.map(dataset => `
+        <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card dataset-card" id="card-${dataset.id}" onclick="viewDatasetDetails('${dataset.id}')">
+                <div class="card-body">
+                    <h6 class="card-title">${dataset.name}</h6>
+                    <p class="card-text small text-muted">${dataset.description}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-secondary">${dataset.category}</span>
+                        <span class="badge toxicity-badge-${dataset.toxicity}">${dataset.toxicity}</span>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted"><i class="fas fa-comment"></i> ${dataset.messages} messages</small>
+                    </div>
+                    <button class="btn btn-sm btn-primary mt-2 w-100" onclick="event.stopPropagation(); analyzeDataset('${dataset.id}')">
+                        <i class="fas fa-play"></i> Analyze
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterDatasets() {
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const toxicityFilter = document.getElementById('toxicityFilter').value;
+    
+    let filtered = datasetsData;
+    
+    if (categoryFilter !== 'all') {
+        filtered = filtered.filter(d => d.category === categoryFilter);
+    }
+    
+    if (toxicityFilter !== 'all') {
+        filtered = filtered.filter(d => d.toxicity === toxicityFilter);
+    }
+    
+    renderDatasets(filtered);
+}
+
+async function analyzeDataset(datasetId) {
+    const card = document.getElementById(`card-${datasetId}`);
+    card.classList.add('analyzing');
+    
+    try {
+        const response = await fetch('/api/datasets/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataset_id: datasetId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            analysisResults[datasetId] = result.analysis;
+            updateSummaryStats();
+            showNotification('Analysis complete!', 'success');
+        }
+    } catch (error) {
+        showNotification('Analysis failed', 'error');
+    } finally {
+        card.classList.remove('analyzing');
+    }
+}
+
+async function analyzeAllDatasets() {
+    const progressSection = document.getElementById('progressSection');
+    const progressBar = document.getElementById('analysisProgress');
+    const progressText = document.getElementById('progressText');
+    
+    progressSection.classList.remove('d-none');
+    analysisResults = {};
+    
+    const total = datasetsData.length;
+    let completed = 0;
+    
+    for (const dataset of datasetsData) {
+        progressText.textContent = `Analyzing: ${dataset.name}...`;
+        
+        try {
+            const response = await fetch('/api/datasets/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dataset_id: dataset.id })
+            });
+            
+            const result = await response.json();
+            if (result.status === 'success') {
+                analysisResults[dataset.id] = result.analysis;
+            }
+        } catch (error) {
+            console.error(`Error analyzing ${dataset.id}:`, error);
+        }
+        
+        completed++;
+        const progress = Math.round((completed / total) * 100);
+        progressBar.style.width = progress + '%';
+        progressBar.textContent = progress + '%';
+    }
+    
+    progressText.textContent = 'Analysis complete!';
+    updateSummaryStats();
+    displayResults();
+    
+    setTimeout(() => progressSection.classList.add('d-none'), 2000);
+}
+
+function updateSummaryStats() {
+    const results = Object.values(analysisResults);
+    if (results.length === 0) return;
+    
+    const totalMessages = results.reduce((sum, r) => sum + r.total_messages, 0);
+    const toxicMessages = results.reduce((sum, r) => sum + r.toxic_messages, 0);
+    const toxicityRate = totalMessages > 0 ? ((toxicMessages / totalMessages) * 100).toFixed(1) : 0;
+    
+    document.getElementById('totalMessages').textContent = totalMessages.toLocaleString();
+    document.getElementById('toxicMessages').textContent = toxicMessages.toLocaleString();
+    document.getElementById('toxicityRate').textContent = toxicityRate + '%';
+}
+
+function displayResults() {
+    document.getElementById('resultsSection').classList.remove('d-none');
+    const tableBody = document.getElementById('resultsTableBody');
+    
+    tableBody.innerHTML = datasetsData.map(dataset => {
+        const result = analysisResults[dataset.id];
+        if (!result) return '';
+        
+        const toxicityPercent = ((result.toxic_messages / result.total_messages) * 100).toFixed(1);
+        return `
+            <tr>
+                <td>${dataset.name}</td>
+                <td><span class="badge bg-secondary">${dataset.category}</span></td>
+                <td>${result.total_messages}</td>
+                <td><span class="badge bg-danger">${result.toxic_messages}</span></td>
+                <td>${toxicityPercent}%</td>
+                <td>${result.average_toxicity_score.toFixed(3)}</td>
+                <td><span class="badge bg-success">Complete</span></td>
+                <td><button class="btn btn-sm btn-info" onclick="viewDetailedReport('${dataset.id}')">View</button></td>
+            </tr>
+        `;
+    }).filter(row => row !== '').join('');
+    
+    createCharts();
+}
+
+function createCharts() {
+    const categoryData = {};
+    datasetsData.forEach(d => categoryData[d.category] = (categoryData[d.category] || 0) + 1);
+    
+    const ctxCategory = document.getElementById('categoryChart');
+    if (categoryChart) categoryChart.destroy();
+    categoryChart = new Chart(ctxCategory, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(categoryData),
+            datasets: [{
+                label: 'Datasets by Category',
+                data: Object.values(categoryData),
+                backgroundColor: 'rgba(54, 162, 235, 0.6)'
+            }]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Dataset Distribution' }}}
+    });
+    
+    const toxicityData = { high: 0, medium: 0, low: 0 };
+    datasetsData.forEach(d => toxicityData[d.toxicity]++);
+    
+    const ctxToxicity = document.getElementById('toxicityChart');
+    if (toxicityChart) toxicityChart.destroy();
+    toxicityChart = new Chart(ctxToxicity, {
+        type: 'doughnut',
+        data: {
+            labels: ['High', 'Medium', 'Low'],
+            datasets: [{ data: [toxicityData.high, toxicityData.medium, toxicityData.low], backgroundColor: ['#dc3545', '#ffc107', '#28a745'] }]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Toxicity Levels' }}}
+    });
+}
+
+function generateReport() {
+    if (Object.keys(analysisResults).length === 0) {
+        showNotification('Please analyze datasets first', 'warning');
+        return;
+    }
+    
+    const results = Object.values(analysisResults);
+    const totalMessages = results.reduce((sum, r) => sum + r.total_messages, 0);
+    const toxicMessages = results.reduce((sum, r) => sum + r.toxic_messages, 0);
+    
+    document.getElementById('reportContent').innerHTML = `
+        <h3 class="text-center mb-4">Chat Toxicity Analysis Report</h3>
+        <p class="text-center text-muted">${new Date().toLocaleString()}</p>
+        <hr>
+        <h4>Executive Summary</h4>
+        <p>Analysis of ${Object.keys(analysisResults).length} datasets processing ${totalMessages.toLocaleString()} messages.</p>
+        <h5>Key Findings:</h5>
+        <ul>
+            <li><strong>Total Messages:</strong> ${totalMessages.toLocaleString()}</li>
+            <li><strong>Toxic Messages:</strong> ${toxicMessages.toLocaleString()} (${((toxicMessages/totalMessages)*100).toFixed(2)}%)</li>
+        </ul>
+        <h4 class="mt-4">Recommendations</h4>
+        <ol>
+            <li>Focus on high-risk platforms (>50% toxicity)</li>
+            <li>Implement automated moderation</li>
+            <li>Provide user education programs</li>
+        </ol>
+    `;
+    
+    document.getElementById('reportSection').classList.remove('d-none');
+    document.getElementById('reportSection').scrollIntoView({ behavior: 'smooth' });
+}
+
+function exportReportCSV() {
+    const rows = datasetsData.map(d => {
+        const r = analysisResults[d.id];
+        return r ? `${d.name},${d.category},${r.total_messages},${r.toxic_messages},${((r.toxic_messages/r.total_messages)*100).toFixed(2)}` : null;
+    }).filter(r => r).join('\n');
+    
+    const csv = 'Dataset,Category,Messages,Toxic,Rate%\n' + rows;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'toxicity_report.csv';
+    link.click();
+}
+
+function viewDatasetDetails(id) {
+    const d = datasetsData.find(ds => ds.id === id);
+    alert(`${d.name}\nCategory: ${d.category}\nToxicity: ${d.toxicity}\nMessages: ${d.messages}`);
+}
+
+function viewDetailedReport(id) {
+    const result = analysisResults[id];
+    if (!result) return;
+    alert(`Total: ${result.total_messages}\nToxic: ${result.toxic_messages}\nRate: ${((result.toxic_messages/result.total_messages)*100).toFixed(2)}%`);
+}
+
+function showNotification(msg, type) {
+    const color = type === 'success' ? 'success' : type === 'error' ? 'danger' : 'warning';
+    const div = document.createElement('div');
+    div.className = `alert alert-${color} position-fixed top-0 end-0 m-3`;
+    div.style.zIndex = '9999';
+    div.textContent = msg;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
+</script>
+{% endblock %}

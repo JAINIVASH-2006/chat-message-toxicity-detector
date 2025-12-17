@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{% block title %}Toxicity Detector{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Toxicity Detector</div>
+      <nav>
+        <a href="/"><i class="fas fa-home"></i> Home</a>
+        <a href="/chat-analyzer"><i class="fas fa-comment"></i> Chat Analyzer</a>
+        <a href="/live-dashboard"><i class="fas fa-chart-pie"></i> Live Dashboard</a>
+        <a href="/dataset-analyzer"><i class="fas fa-database"></i> Dataset Analyzer</a>
+        <a href="/comparison"><i class="fas fa-balance-scale"></i> Comparison</a>
+        <a href="/analytics"><i class="fas fa-chart-line"></i> Analytics</a>
+        <a href="/spark-monitor"><i class="fas fa-fire"></i> Spark Monitor</a>
+        <a href="/batch"><i class="fas fa-layer-group"></i> Batch</a>
+        <a href="/models"><i class="fas fa-brain"></i> Models</a>
+        <a href="/help"><i class="fas fa-question-circle"></i> Help</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer muted">Spark Web UI runs at <a href="http://localhost:4040" target="_blank" rel="noopener">http://localhost:4040</a> while SparkContext is active.</footer>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

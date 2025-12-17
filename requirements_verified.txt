@@ -1,0 +1,40 @@
+# Enhanced Toxicity Analysis System - Requirements
+# Python 3.8+ required
+
+# Core Framework
+flask==2.3.2
+werkzeug==2.3.6
+
+# Data Processing
+pandas==2.2.3
+numpy>=1.21.0,<2.0.0
+pyarrow>=10.0.0
+
+# PySpark (for distributed processing)
+pyspark==4.0.1
+findspark==2.0.1
+
+# Machine Learning & NLP
+datasets==2.16.1
+transformers==4.35.0
+
+# HTTP & API
+requests==2.31.0
+urllib3==2.0.4
+
+# Server (optional - for production)
+uvicorn==0.23.2
+gunicorn==21.2.0
+
+# Utilities
+python-dotenv==1.0.0
+tqdm==4.66.1
+
+# Additional dependencies (auto-installed by above)
+# These are typically installed automatically but listed for reference:
+# - torch (via transformers)
+# - huggingface-hub (via transformers)
+# - tokenizers (via transformers)
+# - certifi (via requests)
+# - charset-normalizer (via requests)
+# - idna (via requests)

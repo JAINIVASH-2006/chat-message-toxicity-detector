@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Batch Analysis</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .upload-zone {
+      border: 3px dashed #d1d5db;
+      border-radius: 12px;
+      padding: 60px 20px;
+      text-align: center;
+      background: #f9fafb;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin: 20px 0;
+    }
+    
+    .upload-zone:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    
+    .upload-zone.active {
+      border-color: #10b981;
+      background: #ecfdf5;
+    }
+    
+    .upload-icon {
+      font-size: 64px;
+      color: #9ca3af;
+      margin-bottom: 20px;
+    }
+    
+    .upload-text {
+      font-size: 18px;
+      color: #374151;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    
+    .upload-subtext {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    .manual-input-area {
+      margin: 20px 0;
+    }
+    
+    .message-input-box {
+      width: 100%;
+      min-height: 200px;
+      padding: 15px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      resize: vertical;
+    }
+    
+    .results-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    .summary-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid #3b82f6;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .summary-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #374151;
+      margin: 10px 0;
+    }
+    
+    .summary-label {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    .results-table {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin: 20px 0;
+    }
+    
+    .results-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .results-table th {
+      background: #374151;
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    
+    .results-table td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .results-table tr:hover {
+      background: #f9fafb;
+    }
+    
+    .level-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e5e7eb;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">📦 Batch Analysis</div>
+    <nav>
+      <a href="/"><i class="fas fa-home"></i> Home</a>
+      <a href="/chat-analyzer"><i class="fas fa-comment"></i> Chat Analyzer</a>
+      <a href="/live-dashboard"><i class="fas fa-chart-pie"></i> Live Dashboard</a>
+      <a href="/dataset-analyzer"><i class="fas fa-database"></i> Dataset Analyzer</a>
+      <a href="/comparison"><i class="fas fa-balance-scale"></i> Comparison</a>
+      <a href="/analytics"><i class="fas fa-chart-line"></i> Analytics</a>
+      <a href="/batch" class="active"><i class="fas fa-layer-group"></i> Batch</a>
+      <a href="/models"><i class="fas fa-brain"></i> Models</a>
+      <a href="/help"><i class="fas fa-question-circle"></i> Help</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section>
+      <h1>Batch Message Analysis</h1>
+      <p class="muted">Upload a file or paste multiple messages for bulk toxicity analysis</p>
+    </section>
+
+    <div class="card">
+      <h3>📤 Upload File</h3>
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-icon">
+          <i class="fa fa-cloud-upload-alt"></i>
+        </div>
+        <div class="upload-text">Drop your file here or click to browse</div>
+        <div class="upload-subtext">Supports: CSV, TXT, JSON (one message per line)</div>
+      </div>
+      <input type="file" id="file-input" class="d-none" accept=".csv,.txt,.json" / aria-label="Upload file">
+    </div>
+
+    <div class="card manual-input-area">
+      <h3>✍️ Manual Input</h3>
+      <p class="muted">Paste messages below (one per line)</p>
+      <textarea 
+        id="manual-messages" 
+        class="message-input-box"
+        placeholder="Enter messages here, one per line...&#10;Example:&#10;This is message 1&#10;This is message 2&#10;This is message 3"
+      ></textarea>
+      <button id="analyze-manual-btn" class="btn primary btn-margin-top">
+        <i class="fa fa-play"></i> Analyze Messages
+      </button>
+    </div>
+
+    <div id="progress-section" class="d-none">
+      <div class="card">
+        <h3>⏳ Processing...</h3>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill">0%</div>
+        </div>
+        <p class="muted" id="progress-text">Analyzing messages...</p>
+      </div>
+    </div>
+
+    <div id="results-section" class="d-none">
+      <section class="card">
+        <div class="results-header-flex">
+          <h3>📊 Analysis Results</h3>
+          <div class="export-btn-group">
+            <button id="export-csv-btn" class="btn btn-green">
+              <i class="fa fa-file-csv"></i> Export CSV
+            </button>
+            <button id="export-json-btn" class="btn btn-blue">
+              <i class="fa fa-file-code"></i> Export JSON
+            </button>
+            <button id="export-html-btn" class="btn btn-amber">
+              <i class="fa fa-file-alt"></i> Export HTML
+            </button>
+          </div>
+        </div>
+
+        <div class="results-summary" id="results-summary"></div>
+      </section>
+
+      <section class="results-table">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Message Preview</th>
+              <th>Score</th>
+              <th>Level</th>
+              <th>Category</th>
+              <th>Matches</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let currentResults = null;
+
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('active');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('active');
+    });
+
+    uploadZone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('active');
+      
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        await processFile(file);
+      }
+    });
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        await processFile(file);
+      }
+    });
+
+    async function processFile(file) {
+      const text = await file.text();
+      let messages = [];
+
+      if (file.name.endsWith('.json')) {
+        try {
+          const data = JSON.parse(text);
+          messages = Array.isArray(data) ? data : [data];
+        } catch (e) {
+          alert('Invalid JSON file');
+          return;
+        }
+      } else if (file.name.endsWith('.csv')) {
+        const lines = text.split('\n').slice(1); // Skip header
+        messages = lines.filter(l => l.trim()).map(l => {
+          const match = l.match(/"([^"]+)"/);
+          return match ? match[1] : l.split(',')[0];
+        });
+      } else {
+        messages = text.split('\n').filter(l => l.trim());
+      }
+
+      if (messages.length === 0) {
+        alert('No messages found in file');
+        return;
+      }
+
+      await analyzeBatch(messages);
+    }
+
+    document.getElementById('analyze-manual-btn').addEventListener('click', async () => {
+      const text = document.getElementById('manual-messages').value.trim();
+      
+      if (!text) {
+        alert('Please enter some messages');
+        return;
+      }
+
+      const messages = text.split('\n').filter(l => l.trim());
+      await analyzeBatch(messages);
+    });
+
+    async function analyzeBatch(messages) {
+      document.getElementById('progress-section').style.display = 'block';
+      document.getElementById('results-section').style.display = 'none';
+      
+      updateProgress(0, `Analyzing ${messages.length} messages...`);
+
+      try {
+        const response = await fetch('/api/batch-analyze', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({messages})
+        });
+
+        if (!response.ok) throw new Error('Analysis failed');
+
+        const data = await response.json();
+        currentResults = data;
+
+        updateProgress(100, 'Complete!');
+        
+        setTimeout(() => {
+          document.getElementById('progress-section').style.display = 'none';
+          displayResults(data);
+        }, 500);
+
+      } catch (error) {
+        alert('Error analyzing messages: ' + error.message);
+        document.getElementById('progress-section').style.display = 'none';
+      }
+    }
+
+    function updateProgress(percent, text) {
+      const fill = document.getElementById('progress-fill');
+      fill.style.width = percent + '%';
+      fill.textContent = percent + '%';
+      document.getElementById('progress-text').textContent = text;
+    }
+
+    function displayResults(data) {
+      const summary = data.summary;
+      const results = data.results;
+
+      // Summary cards
+      document.getElementById('results-summary').innerHTML = `
+        <div class="summary-card">
+          <div class="summary-label">Total Messages</div>
+          <div class="summary-value">${summary.total_messages}</div>
+        </div>
+        <div class="summary-card" style="border-left-color: #ef4444;">
+          <div class="summary-label">Toxic Messages</div>
+          <div class="summary-value" style="color: #ef4444;">${summary.toxic_messages}</div>
+        </div>
+        <div class="summary-card" style="border-left-color: #10b981;">
+          <div class="summary-label">Safe Messages</div>
+          <div class="summary-value" style="color: #10b981;">${summary.safe_messages}</div>
+        </div>
+        <div class="summary-card" style="border-left-color: #f59e0b;">
+          <div class="summary-label">Average Score</div>
+          <div class="summary-value" style="color: #f59e0b;">${summary.average_score.toFixed(1)}</div>
+        </div>
+        <div class="summary-card" style="border-left-color: #8b5cf6;">
+          <div class="summary-label">Toxic Rate</div>
+          <div class="summary-value" style="color: #8b5cf6;">${summary.toxic_percentage}%</div>
+        </div>
+      `;
+
+      // Results table
+      const tbody = document.getElementById('results-tbody');
+      tbody.innerHTML = results.map(r => {
+        const color = getLevelColor(r.toxicity_level);
+        return `
+          <tr>
+            <td>${r.index}</td>
+            <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis;">${r.text}</td>
+            <td><strong style="color: ${color};">${r.toxicity_score.toFixed(1)}</strong></td>
+            <td><span class="level-badge" style="background: ${color}; color: white;">${r.toxicity_level}</span></td>
+            <td>${r.top_category.replace(/_/g, ' ')}</td>
+            <td>${r.total_matches}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('results-section').style.display = 'block';
+    }
+
+    function getLevelColor(level) {
+      const colors = {
+        'SAFE': '#10b981',
+        'LOW': '#84cc16',
+        'MEDIUM': '#f59e0b',
+        'HIGH': '#f97316',
+        'SEVERE': '#ef4444',
+        'EXTREME': '#dc2626'
+      };
+      return colors[level] || '#6b7280';
+    }
+
+    // Export functions
+    document.getElementById('export-csv-btn').addEventListener('click', () => exportResults('csv'));
+    document.getElementById('export-json-btn').addEventListener('click', () => exportResults('json'));
+    document.getElementById('export-html-btn').addEventListener('click', () => exportResults('html'));
+
+    async function exportResults(format) {
+      if (!currentResults) return;
+
+      try {
+        const response = await fetch('/api/export', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            results: currentResults.results,
+            format: format
+          })
+        });
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `toxicity_analysis_${Date.now()}.${format}`;
+        a.click();
+
+      } catch (error) {
+        alert('Export failed: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

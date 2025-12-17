@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Toxicity Comparison Tool</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    
+    .compare-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .compare-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    .compare-textarea {
+      width: 100%;
+      min-height: 150px;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      resize: vertical;
+    }
+    
+    .compare-textarea:focus {
+      outline: none;
+      border-color: #3b82f6;
+    }
+    
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .result-card {
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 8px;
+      border-top: 4px solid #3b82f6;
+    }
+    
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .metric-row:last-child {
+      border-bottom: none;
+    }
+    
+    .metric-label {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    .metric-value {
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    .winner-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #10b981;
+      color: white;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+    
+    .comparison-summary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      margin-top: 20px;
+      text-align: center;
+    }
+    
+    .improvement-percent {
+      font-size: 48px;
+      font-weight: 800;
+      margin: 10px 0;
+    }
+    
+    .vs-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 60px;
+      height: 60px;
+      background: #3b82f6;
+      color: white;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 24px;
+      margin: 20px auto;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    }
+    
+    @media (max-width: 968px) {
+      .comparison-grid, .results-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .section-margin {
+      margin-bottom: 20px;
+    }
+    
+    .icon-blue {
+      color: #3b82f6;
+    }
+    
+    .icon-purple {
+      color: #8b5cf6;
+    }
+    
+    .btn-center {
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .btn-large {
+      padding: 12px 40px;
+      font-size: 16px;
+    }
+    
+    .card-top-margin {
+      margin-top: 30px;
+    }
+    
+    .use-case-list {
+      color: #6b7280;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⚖️ Toxicity Comparison</div>
+    <nav>
+      <a href="/"><i class="fas fa-home"></i> Home</a>
+      <a href="/chat-analyzer"><i class="fas fa-comment"></i> Chat Analyzer</a>
+      <a href="/live-dashboard"><i class="fas fa-chart-pie"></i> Live Dashboard</a>
+      <a href="/dataset-analyzer"><i class="fas fa-database"></i> Dataset Analyzer</a>
+      <a href="/comparison" class="active"><i class="fas fa-balance-scale"></i> Comparison</a>
+      <a href="/analytics"><i class="fas fa-chart-line"></i> Analytics</a>
+      <a href="/batch"><i class="fas fa-layer-group"></i> Batch</a>
+      <a href="/models"><i class="fas fa-brain"></i> Models</a>
+      <a href="/help"><i class="fas fa-question-circle"></i> Help</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="section-margin">
+      <h1>Message Comparison Tool</h1>
+      <p class="muted">Compare two messages to see which one is less toxic and by how much</p>
+    </section>
+
+    <div class="comparison-grid">
+      <div class="compare-panel">
+        <div class="compare-header">
+          <i class="fa fa-message icon-blue"></i>
+          <span>Message A</span>
+        </div>
+        <textarea 
+          id="message-a" 
+          class="compare-textarea" 
+          placeholder="Enter first message to compare..."
+        ></textarea>
+      </div>
+
+      <div class="compare-panel">
+        <div class="compare-header">
+          <i class="fa fa-message icon-purple"></i>
+          <span>Message B</span>
+        </div>
+        <textarea 
+          id="message-b" 
+          class="compare-textarea" 
+          placeholder="Enter second message to compare..."
+        ></textarea>
+      </div>
+    </div>
+
+    <div class="btn-center">
+      <button id="compare-btn" class="btn primary btn-large">
+        <i class="fa fa-balance-scale"></i> Compare Messages
+      </button>
+    </div>
+
+    <div id="results-section" class="d-none">
+      <div class="vs-badge">VS</div>
+      
+      <div class="results-grid">
+        <div class="result-card" id="result-a"></div>
+        <div class="result-card" id="result-b"></div>
+      </div>
+
+      <div class="comparison-summary" id="summary"></div>
+    </div>
+
+    <section class="card card-top-margin">
+      <h3>💡 Use Cases</h3>
+      <ul class="use-case-list">
+        <li><strong>Before & After:</strong> Compare original toxic message with AI-suggested alternative</li>
+        <li><strong>A/B Testing:</strong> Test different phrasings to find the most respectful version</li>
+        <li><strong>Self-Improvement:</strong> See how small word changes affect toxicity perception</li>
+        <li><strong>Education:</strong> Learn what makes communication toxic or healthy</li>
+      </ul>
+    </section>
+  </main>
+
+  <script>
+    async function analyzeMessage(text) {
+      const res = await fetch('/predict', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text})
+      });
+      return res.json();
+    }
+
+    function createResultHTML(analysis, isWinner) {
+      const score = analysis.toxicity_score || 0;
+      const level = analysis.toxicity_level || 'SAFE';
+      const color = getColorForLevel(level);
+      
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0;">Analysis Result</h3>
+          ${isWinner ? '<span class="winner-badge">✓ BETTER</span>' : ''}
+        </div>
+        
+        <div class="metric-row">
+          <span class="metric-label">Toxicity Score</span>
+          <span class="metric-value" style="color: ${color};">${score.toFixed(1)}/100</span>
+        </div>
+        
+        <div class="metric-row">
+          <span class="metric-label">Risk Level</span>
+          <span class="metric-value" style="color: ${color};">${level}</span>
+        </div>
+        
+        <div class="metric-row">
+          <span class="metric-label">Toxic Words</span>
+          <span class="metric-value">${analysis.total_matches || 0}</span>
+        </div>
+        
+        <div class="metric-row">
+          <span class="metric-label">Top Category</span>
+          <span class="metric-value">${(analysis.top_category || 'none').replace(/_/g, ' ')}</span>
+        </div>
+        
+        <div class="metric-row">
+          <span class="metric-label">Density</span>
+          <span class="metric-value">${analysis.toxicity_density || 0}%</span>
+        </div>
+      `;
+    }
+
+    function getColorForLevel(level) {
+      const colors = {
+        'SAFE': '#10b981',
+        'LOW': '#84cc16',
+        'MEDIUM': '#f59e0b',
+        'HIGH': '#f97316',
+        'SEVERE': '#ef4444',
+        'EXTREME': '#dc2626'
+      };
+      return colors[level] || '#6b7280';
+    }
+
+    document.getElementById('compare-btn').addEventListener('click', async () => {
+      const messageA = document.getElementById('message-a').value.trim();
+      const messageB = document.getElementById('message-b').value.trim();
+      
+      if (!messageA || !messageB) {
+        alert('Please enter both messages to compare');
+        return;
+      }
+      
+      document.getElementById('compare-btn').disabled = true;
+      document.getElementById('compare-btn').innerHTML = '<i class="fa fa-spinner fa-spin"></i> Analyzing...';
+      
+      try {
+        const [analysisA, analysisB] = await Promise.all([
+          analyzeMessage(messageA),
+          analyzeMessage(messageB)
+        ]);
+        
+        const scoreA = analysisA.toxicity_score || 0;
+        const scoreB = analysisB.toxicity_score || 0;
+        
+        const winnerA = scoreA < scoreB;
+        const winnerB = scoreB < scoreA;
+        const tie = scoreA === scoreB;
+        
+        document.getElementById('result-a').innerHTML = createResultHTML(analysisA, winnerA);
+        document.getElementById('result-b').innerHTML = createResultHTML(analysisB, winnerB);
+        
+        const difference = Math.abs(scoreA - scoreB);
+        const improvementPercent = scoreA > 0 ? ((difference / scoreA) * 100).toFixed(1) : 0;
+        
+        let summaryHTML = '';
+        if (tie) {
+          summaryHTML = `
+            <h2 style="margin: 0 0 10px 0;">It's a Tie!</h2>
+            <p style="font-size: 18px; opacity: 0.9;">Both messages have the same toxicity score of ${scoreA.toFixed(1)}/100</p>
+          `;
+        } else {
+          const winner = winnerA ? 'A' : 'B';
+          const betterScore = winnerA ? scoreA : scoreB;
+          const worseScore = winnerA ? scoreB : scoreA;
+          
+          summaryHTML = `
+            <h2 style="margin: 0 0 10px 0;">Message ${winner} is ${difference.toFixed(1)} points better!</h2>
+            <div class="improvement-percent">${improvementPercent}%</div>
+            <p style="font-size: 18px; opacity: 0.9;">
+              Message ${winner} scored ${betterScore.toFixed(1)}/100 vs Message ${winner === 'A' ? 'B' : 'A'}'s ${worseScore.toFixed(1)}/100
+            </p>
+            <p style="margin-top: 15px; opacity: 0.8;">
+              ${difference > 30 ? '🎉 Huge improvement!' : difference > 15 ? '👍 Significant improvement!' : '✓ Moderate improvement'}
+            </p>
+          `;
+        }
+        
+        document.getElementById('summary').innerHTML = summaryHTML;
+        document.getElementById('results-section').style.display = 'block';
+        
+        // Scroll to results
+        document.getElementById('results-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+      } catch (error) {
+        alert('Error comparing messages: ' + error.message);
+      } finally {
+        document.getElementById('compare-btn').disabled = false;
+        document.getElementById('compare-btn').innerHTML = '<i class="fa fa-balance-scale"></i> Compare Messages';
+      }
+    });
+
+    // Quick examples
+    const examples = [
+      {
+        a: "You're an idiot and this idea is terrible",
+        b: "I respectfully disagree with this approach"
+      },
+      {
+        a: "This is the worst thing I've ever seen",
+        b: "This could use some improvements"
+      },
+      {
+        a: "Shut up and listen to me",
+        b: "Please let me share my perspective"
+      }
+    ];
+
+    // Add example buttons
+    const exampleSection = document.createElement('section');
+    exampleSection.className = 'card';
+    exampleSection.style.marginTop = '20px';
+    exampleSection.innerHTML = `
+      <h3>⚡ Quick Examples</h3>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+        ${examples.map((ex, i) => `
+          <button class="btn" onclick="loadExample(${i})" style="background: #8b5cf6;">
+            Example ${i + 1}
+          </button>
+        `).join('')}
+      </div>
+    `;
+    document.querySelector('.container').appendChild(exampleSection);
+
+    window.loadExample = (index) => {
+      const ex = examples[index];
+      document.getElementById('message-a').value = ex.a;
+      document.getElementById('message-b').value = ex.b;
+      document.getElementById('results-section').style.display = 'none';
+    };
+  </script>
+</body>
+</html>

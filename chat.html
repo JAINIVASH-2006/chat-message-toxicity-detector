@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Chat Analysis — Toxicity Detector{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h2>🚨 Real-time Chat Moderation</h2>
+  <p class="muted">Advanced toxicity analysis for chat messages with real-time monitoring and batch analysis.</p>
+  
+  <!-- Single Message Analysis -->
+  <div class="grid">
+    <div>
+      <label>User</label>
+      <input id="msg-user" value="user123" />
+    </div>
+    <div>
+      <label>Message</label>
+      <input id="msg-text" placeholder="Enter chat message..." />
+    </div>
+    <div class="actions">
+      <button id="moderate-btn" class="btn primary"><i class="fa fa-shield"></i> Moderate</button>
+    </div>
+  </div>
+  <div id="moderate-result" class="result"></div>
+</section>
+
+<section class="card">
+  <h2>📊 Batch Chat Analysis</h2>
+  <p class="muted">Analyze multiple chat messages for overall toxicity trends.</p>
+  
+  <textarea id="bulk-messages" rows="8" placeholder="Paste chat messages here (one per line) or JSON format:
+user1: Hello everyone!
+user2: This is stupid and awful
+user3: Thanks for the help"></textarea>
+  
+  <div class="actions">
+    <button id="analyze-bulk" class="btn primary"><i class="fa fa-chart-line"></i> Analyze Chat</button>
+    <button id="clear-history" class="btn ghost"><i class="fa fa-trash"></i> Clear History</button>
+  </div>
+  
+  <div id="bulk-result" class="result"></div>
+  
+  <!-- Statistics Dashboard -->
+  <div id="stats-dashboard" style="margin-top:16px" class="hidden">
+    <h3>📈 Chat Statistics</h3>
+    <div class="grid">
+      <div class="stat-card">
+        <div class="stat-number" id="avg-toxicity">0%</div>
+        <div class="stat-label">Average Toxicity</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="high-risk-count">0</div>
+        <div class="stat-label">High Risk Messages</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="flagged-percent">0%</div>
+        <div class="stat-label">Flagged Messages</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>📜 Chat History & Trends</h2>
+  <div class="actions">
+    <button id="load-history" class="btn"><i class="fa fa-history"></i> Load History</button>
+    <span id="trend-indicator" class="muted"></span>
+  </div>
+  
+  <div id="history-container" style="margin-top:12px">
+    <div id="messages-list"></div>
+    <canvas id="toxicity-trend-chart" style="max-width:100%;height:300px;margin-top:12px"></canvas>
+  </div>
+</section>
+
+<style>
+.stat-card {
+  text-align: center;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.stat-number {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1e40af;
+}
+.stat-label {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+.message-item {
+  padding: 8px;
+  margin: 4px 0;
+  border-left: 4px solid #e2e8f0;
+  background: #f8fafc;
+}
+.message-item.high-risk {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+.message-item.medium-risk {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+.message-item.low-risk {
+  border-left-color: #10b981;
+  background: #f0fdf4;
+}
+.hidden { display: none; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Single message moderation
+document.getElementById('moderate-btn').addEventListener('click', async () => {
+  const user = document.getElementById('msg-user').value;
+  const text = document.getElementById('msg-text').value;
+  
+  const response = await fetch('/api/chat/moderate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user, text})
+  });
+  
+  const result = await response.json();
+  const resultDiv = document.getElementById('moderate-result');
+  const keywords = result.matched_keywords && result.matched_keywords.length
+    ? result.matched_keywords.join(', ')
+    : 'None detected';
+  const categorySignals = result.category_scores
+    ? Object.entries(result.category_scores).map(([cat, count]) => `${cat.replace(/_/g, ' ')} (${count})`).join(', ')
+    : '';
+  const referenceExample = result.reference_example
+    ? `<br><em>Example (${result.top_category?.replace(/_/g, ' ')})</em>: ${result.reference_example}`
+    : '';
+  
+  resultDiv.innerHTML = `
+    <div class="message-item ${result.risk_level.toLowerCase()}-risk">
+      <strong>${result.user}:</strong> ${result.text}<br>
+      <small>
+        Toxicity: ${(result.toxicity_score * 100).toFixed(1)}% | 
+        Risk: ${result.risk_level} | 
+        Actions: ${result.recommended_actions.join(', ') || 'None'}<br>
+        Keywords: ${keywords}<br>
+        Category: ${result.top_category ? result.top_category.replace(/_/g, ' ') : 'Unclassified'}
+        ${categorySignals ? `<br>Signals: ${categorySignals}` : ''}
+        ${referenceExample}
+      </small>
+    </div>
+  `;
+});
+
+// Bulk analysis
+document.getElementById('analyze-bulk').addEventListener('click', async () => {
+  const text = document.getElementById('bulk-messages').value;
+  const lines = text.split('\n').filter(line => line.trim());
+  
+  const messages = lines.map((line, i) => {
+    const parts = line.split(':');
+    return {
+      id: i,
+      user: parts.length > 1 ? parts[0].trim() : `user${i}`,
+      text: parts.length > 1 ? parts.slice(1).join(':').trim() : line.trim(),
+      timestamp: Date.now() + i
+    };
+  });
+  
+  const response = await fetch('/api/chat/analyze', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({messages})
+  });
+  
+  const result = await response.json();
+  
+  // Show results
+  document.getElementById('bulk-result').innerHTML = 
+    `<strong>Analyzed ${result.analyzed_count} messages</strong>`;
+
+  if (result.results) {
+    const list = result.results.map(item => {
+      const kw = item.matched_keywords && item.matched_keywords.length
+        ? item.matched_keywords.join(', ')
+        : 'None';
+      const cat = item.top_category ? item.top_category.replace(/_/g, ' ') : 'Unclassified';
+      const categorySignals = item.category_scores
+        ? Object.entries(item.category_scores).map(([c, val]) => `${c.replace(/_/g, ' ')} (${val})`).join(', ')
+        : '';
+      return `
+        <div class="message-item ${item.risk_level.toLowerCase()}-risk">
+          <strong>${item.user}:</strong> ${item.text}<br>
+          <small>Toxicity: ${(item.toxicity_score * 100).toFixed(1)}% | Risk: ${item.risk_level} | Keywords: ${kw} | Category: ${cat}
+          ${categorySignals ? `<br>Signals: ${categorySignals}` : ''}</small>
+        </div>`;
+    }).join('');
+    document.getElementById('bulk-result').innerHTML += list;
+  }
+  
+  // Update statistics
+  document.getElementById('stats-dashboard').classList.remove('hidden');
+  document.getElementById('avg-toxicity').textContent = 
+    (result.statistics.average_toxicity * 100).toFixed(1) + '%';
+  document.getElementById('high-risk-count').textContent = 
+    result.statistics.high_risk_messages;
+  document.getElementById('flagged-percent').textContent = 
+    result.statistics.flagged_percentage.toFixed(1) + '%';
+});
+
+// Load chat history
+document.getElementById('load-history').addEventListener('click', async () => {
+  const response = await fetch('/api/chat/history?limit=20');
+  const result = await response.json();
+  
+  const messagesList = document.getElementById('messages-list');
+  messagesList.innerHTML = '';
+  
+  for (const msg of result.messages) {
+    const div = document.createElement('div');
+    div.className = `message-item ${msg.risk_level.toLowerCase()}-risk`;
+    const keywords = msg.matched_keywords && msg.matched_keywords.length
+      ? msg.matched_keywords.join(', ')
+      : 'None';
+    const cat = msg.top_category ? msg.top_category.replace(/_/g, ' ') : 'Unclassified';
+    div.innerHTML = `
+      <strong>${msg.user}:</strong> ${msg.text}<br>
+      <small>Toxicity: ${(msg.toxicity_score * 100).toFixed(1)}% | Risk: ${msg.risk_level} | Keywords: ${keywords} | Category: ${cat}</small>
+    `;
+    messagesList.appendChild(div);
+  }
+  
+  document.getElementById('trend-indicator').textContent = 
+    `Trend: ${result.trend} | Current Avg: ${(result.current_average * 100).toFixed(1)}%`;
+  
+  // Update trend chart
+  if (result.messages.length > 0) {
+    updateTrendChart(result.messages);
+  }
+});
+
+// Clear history
+document.getElementById('clear-history').addEventListener('click', () => {
+ if (confirm('Clear chat analysis history?')) {
+   document.getElementById('messages-list').innerHTML = '';
+   document.getElementById('stats-dashboard').classList.add('hidden');
+ }
+});
+
+function updateTrendChart(messages) {
+  const ctx = document.getElementById('toxicity-trend-chart').getContext('2d');
+  if (window.trendChart) window.trendChart.destroy();
+  
+  const labels = messages.map((_, i) => `Msg ${i + 1}`);
+  const data = messages.map(m => m.toxicity_score * 100);
+  
+  window.trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Toxicity %',
+        data: data,
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          title: { display: true, text: 'Toxicity %' }
+        }
+      }
+    }
+  });
+}
+</script>
+
+{% endblock %}

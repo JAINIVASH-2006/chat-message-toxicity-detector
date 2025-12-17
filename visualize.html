@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Visualize — Toxicity Detector{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h2>Data Visualizer</h2>
+  <p class="muted">Preview a CSV dataset and show a quick toxicity distribution chart.</p>
+  <div class="grid">
+    <div>
+      <label>Dataset path (CSV)</label>
+      <input id="viz-path" value="data/datasets/sample_toxicity.csv" />
+    </div>
+    <div class="actions">
+      <button id="preview-btn" class="btn primary">Preview & Chart</button>
+    </div>
+  </div>
+
+  <div id="preview-area" style="margin-top:12px">
+    <div id="preview-table"></div>
+    <canvas id="tox-chart" style="max-width:600px;margin-top:12px"></canvas>
+  </div>
+</section>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.getElementById('preview-btn').addEventListener('click', async ()=>{
+  const path = document.getElementById('viz-path').value;
+  const res = await fetch('/api/data-preview?path='+encodeURIComponent(path));
+  const js = await res.json();
+  const table = document.getElementById('preview-table');
+  table.innerHTML = '';
+  if(js.rows){
+    const cols = js.columns;
+    const tbl = document.createElement('table');
+    tbl.style.width='100%'; tbl.style.borderCollapse='collapse';
+    const thead = document.createElement('thead');
+    const tr = document.createElement('tr');
+    for(const c of cols){ const th = document.createElement('th'); th.textContent=c; th.style.textAlign='left'; th.style.padding='6px'; tr.appendChild(th)}
+    thead.appendChild(tr); tbl.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    for(const r of js.rows){ const tr2=document.createElement('tr'); for(const c of cols){ const td=document.createElement('td'); td.textContent = r[c]; td.style.padding='6px'; tr2.appendChild(td)} tbody.appendChild(tr2)}
+    tbl.appendChild(tbody); table.appendChild(tbl);
+  }
+  // chart
+  const counts = js.counts || {0:0,1:0};
+  const ctx = document.getElementById('tox-chart').getContext('2d');
+  if(window.toxChart) window.toxChart.destroy();
+  window.toxChart = new Chart(ctx,{type:'bar',data:{labels:['non-toxic','toxic'],datasets:[{label:'Count',data:[counts[0]||0,counts[1]||0],backgroundColor:['#10b981','#ef4444']}]});
+});
+</script>
+
+{% endblock %}
