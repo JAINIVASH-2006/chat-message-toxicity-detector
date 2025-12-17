@@ -21,6 +21,8 @@ class TextPreprocessor:
         self.stop_words_remover = None
         self.hashing_tf = None
         self.idf_model = None
+        # Create UDF once at initialization for better performance
+        self._clean_text_udf = udf(self.clean_text, StringType())
     
     @staticmethod
     def clean_text(text):
@@ -64,11 +66,8 @@ class TextPreprocessor:
         Returns:
             DataFrame: Preprocessed DataFrame
         """
-        # Define UDF for text cleaning
-        clean_text_udf = udf(self.clean_text, StringType())
-        
-        # Apply text cleaning
-        df = df.withColumn("cleaned_text", clean_text_udf(col(text_column)))
+        # Apply text cleaning using the pre-created UDF
+        df = df.withColumn("cleaned_text", self._clean_text_udf(col(text_column)))
         
         return df
     
@@ -156,3 +155,27 @@ class TextPreprocessor:
         df = self.extract_tfidf_features(df, input_col="filtered_words", num_features=num_features)
         
         return df
+    
+    def save_idf_model(self, path: str) -> None:
+        """
+        Save the IDF model
+        
+        Args:
+            path (str): Path to save the IDF model
+        """
+        if self.idf_model is None:
+            raise ValueError("No IDF model to save. Train the model first.")
+        
+        self.idf_model.write().overwrite().save(path)
+        print(f"IDF model saved to {path}")
+    
+    def load_idf_model(self, path: str) -> None:
+        """
+        Load the IDF model
+        
+        Args:
+            path (str): Path to load the IDF model from
+        """
+        from pyspark.ml.feature import IDFModel
+        self.idf_model = IDFModel.load(path)
+        print(f"IDF model loaded from {path}")

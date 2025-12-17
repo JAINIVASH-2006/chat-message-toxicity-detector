@@ -52,7 +52,34 @@ def load_model(model_path, model_type="logistic_regression"):
     return model
 
 
-def predict_messages(spark, model, messages, num_features=1000):
+def load_preprocessor(idf_model_path, num_features=1000):
+    """
+    Load and initialize preprocessor with saved IDF model
+    
+    Args:
+        idf_model_path (str): Path to saved IDF model
+        num_features (int): Number of TF-IDF features
+        
+    Returns:
+        TextPreprocessor: Initialized preprocessor
+    """
+    preprocessor = TextPreprocessor()
+    
+    # Initialize HashingTF with same parameters as training
+    from pyspark.ml.feature import HashingTF
+    preprocessor.hashing_tf = HashingTF(
+        inputCol="filtered_words",
+        outputCol="raw_features",
+        numFeatures=num_features
+    )
+    
+    # Load the saved IDF model
+    preprocessor.load_idf_model(idf_model_path)
+    
+    return preprocessor
+
+
+def predict_messages(spark, model, messages, preprocessor):
     """
     Predict toxicity for a list of messages
     
@@ -60,7 +87,7 @@ def predict_messages(spark, model, messages, num_features=1000):
         spark (SparkSession): Spark session
         model: Trained model
         messages (list): List of messages to predict
-        num_features (int): Number of TF-IDF features
+        preprocessor (TextPreprocessor): Initialized preprocessor with IDF model
         
     Returns:
         DataFrame: Predictions DataFrame
@@ -69,9 +96,12 @@ def predict_messages(spark, model, messages, num_features=1000):
     schema = StructType([StructField("message", StringType(), True)])
     messages_df = spark.createDataFrame([(msg,) for msg in messages], schema)
     
-    # Preprocess messages
-    preprocessor = TextPreprocessor()
-    processed_df = preprocessor.full_pipeline(messages_df, text_column="message", num_features=num_features)
+    # Preprocess messages using the loaded preprocessor
+    processed_df = preprocessor.preprocess_dataframe(messages_df, text_column="message")
+    processed_df = preprocessor.tokenize_text(processed_df, input_col="cleaned_text", output_col="words")
+    processed_df = preprocessor.remove_stop_words(processed_df, input_col="words", output_col="filtered_words")
+    processed_df = preprocessor.hashing_tf.transform(processed_df)
+    processed_df = preprocessor.idf_model.transform(processed_df)
     
     # Make predictions
     predictions = model.transform(processed_df)
@@ -108,7 +138,7 @@ def display_predictions(predictions):
     print("\n" + "=" * 80)
 
 
-def predict_from_file(spark, model, file_path, num_features=1000):
+def predict_from_file(spark, model, file_path, preprocessor):
     """
     Predict toxicity for messages in a CSV file
     
@@ -116,7 +146,7 @@ def predict_from_file(spark, model, file_path, num_features=1000):
         spark (SparkSession): Spark session
         model: Trained model
         file_path (str): Path to CSV file with messages
-        num_features (int): Number of TF-IDF features
+        preprocessor (TextPreprocessor): Initialized preprocessor with IDF model
         
     Returns:
         DataFrame: Predictions DataFrame
@@ -124,9 +154,12 @@ def predict_from_file(spark, model, file_path, num_features=1000):
     # Load messages from file
     messages_df = spark.read.csv(file_path, header=True, inferSchema=True)
     
-    # Preprocess messages
-    preprocessor = TextPreprocessor()
-    processed_df = preprocessor.full_pipeline(messages_df, text_column="message", num_features=num_features)
+    # Preprocess messages using the loaded preprocessor
+    processed_df = preprocessor.preprocess_dataframe(messages_df, text_column="message")
+    processed_df = preprocessor.tokenize_text(processed_df, input_col="cleaned_text", output_col="words")
+    processed_df = preprocessor.remove_stop_words(processed_df, input_col="words", output_col="filtered_words")
+    processed_df = preprocessor.hashing_tf.transform(processed_df)
+    processed_df = preprocessor.idf_model.transform(processed_df)
     
     # Make predictions
     predictions = model.transform(processed_df)
@@ -162,16 +195,21 @@ def main():
         print("=== Loading Model ===")
         model = load_model(args.model_path, args.model_type)
         
+        # Load preprocessor with IDF model
+        print("=== Loading Preprocessor ===")
+        idf_model_path = args.model_path + "_idf"
+        preprocessor = load_preprocessor(idf_model_path, args.num_features)
+        
         # Make predictions
         if args.message:
             # Predict from command line messages
-            predictions = predict_messages(spark, model, args.message, args.num_features)
+            predictions = predict_messages(spark, model, args.message, preprocessor)
             display_predictions(predictions)
         
         elif args.file:
             # Predict from file
             print(f"\n=== Predicting from file: {args.file} ===")
-            predictions = predict_from_file(spark, model, args.file, args.num_features)
+            predictions = predict_from_file(spark, model, args.file, preprocessor)
             display_predictions(predictions)
             
             # Save predictions if output path provided
@@ -193,7 +231,7 @@ def main():
                 "You're worthless and nobody likes you"
             ]
             
-            predictions = predict_messages(spark, model, example_messages, args.num_features)
+            predictions = predict_messages(spark, model, example_messages, preprocessor)
             display_predictions(predictions)
     
     finally:

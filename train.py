@@ -81,10 +81,13 @@ def preprocess_data(train_df, test_df, num_features=1000):
     test_processed = preprocessor.remove_stop_words(test_processed, input_col="words", output_col="filtered_words")
     
     # Apply the same TF-IDF model learned from training data
-    test_processed = preprocessor.hashing_tf.transform(test_processed)
-    test_processed = preprocessor.idf_model.transform(test_processed)
+    if preprocessor.hashing_tf is not None and preprocessor.idf_model is not None:
+        test_processed = preprocessor.hashing_tf.transform(test_processed)
+        test_processed = preprocessor.idf_model.transform(test_processed)
+    else:
+        raise ValueError("TF-IDF models not initialized. Ensure full_pipeline was called on training data.")
     
-    return train_processed, test_processed
+    return train_processed, test_processed, preprocessor
 
 
 def train_model(train_df, model_type="logistic_regression", **model_params):
@@ -200,7 +203,7 @@ def main():
         train_df, test_df = load_data(spark, args.train_data, args.test_data)
         
         # Preprocess data
-        train_processed, test_processed = preprocess_data(
+        train_processed, test_processed, preprocessor = preprocess_data(
             train_df, test_df, num_features=args.num_features
         )
         
@@ -216,10 +219,14 @@ def main():
         # Evaluate model
         predictions, metrics = evaluate_model(classifier, test_processed)
         
-        # Save model
-        print(f"\n=== Saving Model ===")
+        # Save model and preprocessor
+        print(f"\n=== Saving Model and Preprocessor ===")
         os.makedirs(os.path.dirname(args.model_path), exist_ok=True)
         classifier.save_model(args.model_path)
+        
+        # Save IDF model for use during prediction
+        idf_model_path = args.model_path + "_idf"
+        preprocessor.save_idf_model(idf_model_path)
         
         # Save results
         save_results(predictions, metrics, args.output_dir)

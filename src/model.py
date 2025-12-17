@@ -3,7 +3,10 @@ Machine Learning Model Module
 Handles model training, evaluation, and prediction
 """
 
-from pyspark.ml.classification import LogisticRegression, RandomForestClassifier
+from pyspark.ml.classification import (
+    LogisticRegression, RandomForestClassifier,
+    LogisticRegressionModel, RandomForestClassificationModel
+)
 from pyspark.ml.evaluation import BinaryClassificationEvaluator, MulticlassClassificationEvaluator
 from pyspark.sql import DataFrame
 from typing import Tuple, Dict
@@ -156,10 +159,8 @@ class ToxicityClassifier:
         """
         if model_class is None:
             if self.model_type == "logistic_regression":
-                from pyspark.ml.classification import LogisticRegressionModel
                 model_class = LogisticRegressionModel
             elif self.model_type == "random_forest":
-                from pyspark.ml.classification import RandomForestClassificationModel
                 model_class = RandomForestClassificationModel
         
         self.trained_model = model_class.load(path)
