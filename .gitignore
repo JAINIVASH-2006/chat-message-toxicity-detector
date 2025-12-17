@@ -43,6 +43,7 @@ spark-warehouse/
 .ipynb_checkpoints
 
 # Model files
+models/*/
 *.model
 *.bin
 
@@ -52,6 +53,7 @@ spark-warehouse/
 # Output files
 output/*.txt
 output/*.csv
+output/*/*.csv
 
 # Temporary files
 *.tmp
