@@ -5,8 +5,8 @@ Handles text cleaning, tokenization, and feature extraction
 
 import re
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import udf, col, lower, regexp_replace
-from pyspark.sql.types import StringType, ArrayType
+from pyspark.sql.functions import udf, col
+from pyspark.sql.types import StringType
 from pyspark.ml.feature import Tokenizer, StopWordsRemover, HashingTF, IDF, IDFModel
 
 
